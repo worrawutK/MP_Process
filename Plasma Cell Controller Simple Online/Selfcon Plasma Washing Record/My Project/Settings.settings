@@ -10,9 +10,6 @@
 &lt;/SerializableConnectionString&gt;</DesignTimeValue>
       <Value Profile="(Default)">Data Source=172.16.0.102;Initial Catalog=DBx;User ID=dbxuser</Value>
     </Setting>
-    <Setting Name="MCNo" Type="System.String" Scope="User">
-      <Value Profile="(Default)">MP-P-02</Value>
-    </Setting>
     <Setting Name="MCType" Type="System.String" Scope="User">
       <Value Profile="(Default)">PSX-307</Value>
     </Setting>
@@ -65,6 +62,9 @@
     </Setting>
     <Setting Name="RunOffline" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="MCNo" Type="System.String" Scope="User">
+      <Value Profile="(Default)">MP-P-02</Value>
     </Setting>
   </Settings>
 </SettingsFile>

@@ -9,6 +9,7 @@ Public Class ClassPara
     Public OPNo As String
     Public EndTime As String
     Public StartTime As String
+    Public Recipe As String
 
     Public NGQty As String
     Public GoodQty As String

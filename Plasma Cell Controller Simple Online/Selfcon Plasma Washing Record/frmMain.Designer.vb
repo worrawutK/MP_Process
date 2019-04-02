@@ -150,9 +150,9 @@ Partial Class Frmmain
         Me.Label1 = New System.Windows.Forms.Label()
         Me.bgTDC = New System.ComponentModel.BackgroundWorker()
         Me.bgTDCLotReq = New System.ComponentModel.BackgroundWorker()
+        Me.Label27 = New System.Windows.Forms.Label()
         Me.DBxDataSet = New Selfcon_Plasma_Washing_Record.DBxDataSet()
         Me.MpPlasmaDataTableAdapter1 = New Selfcon_Plasma_Washing_Record.DBxDataSetTableAdapters.MPPlasmaDataTableAdapter()
-        Me.Label27 = New System.Windows.Forms.Label()
         Me.TabControl1.SuspendLayout()
         Me.TabPage3.SuspendLayout()
         Me.PanelMaster.SuspendLayout()
@@ -1591,11 +1591,16 @@ Partial Class Frmmain
         Me.Label1.Text = "PLASMA CLEANING"
         Me.Label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         '
-        'bgTDC
+        'Label27
         '
-        '
-        'bgTDCLotReq
-        '
+        Me.Label27.AutoSize = True
+        Me.Label27.BackColor = System.Drawing.Color.Transparent
+        Me.Label27.Location = New System.Drawing.Point(1087, 985)
+        Me.Label27.Name = "Label27"
+        Me.Label27.Size = New System.Drawing.Size(152, 13)
+        Me.Label27.TabIndex = 310
+        Me.Label27.Text = "Version1.01 Support Apcs Pro."
+        Me.Label27.TextAlign = System.Drawing.ContentAlignment.MiddleRight
         '
         'DBxDataSet
         '
@@ -1605,17 +1610,6 @@ Partial Class Frmmain
         'MpPlasmaDataTableAdapter1
         '
         Me.MpPlasmaDataTableAdapter1.ClearBeforeFill = True
-        '
-        'Label27
-        '
-        Me.Label27.AutoSize = True
-        Me.Label27.BackColor = System.Drawing.Color.Transparent
-        Me.Label27.Location = New System.Drawing.Point(1176, 983)
-        Me.Label27.Name = "Label27"
-        Me.Label27.Size = New System.Drawing.Size(63, 13)
-        Me.Label27.TabIndex = 310
-        Me.Label27.Text = "Version1.00"
-        Me.Label27.TextAlign = System.Drawing.ContentAlignment.MiddleRight
         '
         'Frmmain
         '

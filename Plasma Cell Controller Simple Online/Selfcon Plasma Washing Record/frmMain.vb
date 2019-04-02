@@ -2,21 +2,27 @@
 Imports System.Runtime.Serialization.Formatters.Soap
 Imports System.Threading
 Imports System.Xml.Serialization
-Imports Rohm.Apcs.Tdc
+'Imports Rohm.Apcs.Tdc
 Imports Rohm.Ems
 Imports Selfcon_Plasma_Washing_Record.RohmService
+Imports MessageDialog
+Imports Selfcon_Plasma_Washing_Record.iLibraryService
 
 'เขียนไล่จากปุ่มด้านบนสุด จนไปถึงแถบเมนู จึงเริ่มเขียนโค๊ด จังหวะโหลดโปรแกรม
 Public Class Frmmain
     Public m_EmsClient As EmsServiceClient = New EmsServiceClient("MP", "http://webserv.thematrix.net:7777/EmsService")
+    Private c_IlibraryService As IServiceiLibrary
+    Private Const c_Process As String = "MP"
+    Private Const c_LayerNo As String = "0138" 'PLASMA2
+    Private c_Recipe As String
     ' ประกาศตัวแปร
-    Private m_TdcService As TdcService
+    ' Private m_TdcService As TdcService
     Dim m_Locker As New Object
     Private m_LotSetQueue As Queue(Of String) = New Queue(Of String)
     Private m_LotEndQueue As Queue(Of String) = New Queue(Of String)
     Private m_LotReqQueue As String
-    Dim li As LotInfo
-    Dim m_dlg As TdcAlarmMessageForm
+    'Dim li As LotInfo
+    ' Dim m_dlg As TdcAlarmMessageForm
     Dim m_LotReqMes As String
 
     Dim QRCode252 As String
@@ -35,9 +41,9 @@ Public Class Frmmain
     End Sub
 
     Private Sub Frmmain_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
-        m_TdcService = TdcService.GetInstance()
-        m_TdcService.ConnectionString = My.Settings.APCSDBConnectionString
-
+        'm_TdcService = TdcService.GetInstance()
+        'm_TdcService.ConnectionString = My.Settings.APCSDBConnectionString
+        c_IlibraryService = New ServiceiLibraryClient
         Try
             Dim reg As EmsMachineRegisterInfo = New EmsMachineRegisterInfo(My.Settings.MCNo, "MP-" & My.Settings.MCNo, "MP", My.Settings.MCType, "", 0, 0, 0, 0, 0)
             m_EmsClient.Register(reg)
@@ -75,9 +81,8 @@ Public Class Frmmain
         End If
         ' AAAA(PlasmaStatus.LotClear)
 
-
-
-
+        'machine Online Pro.
+        c_IlibraryService.MachineOnlineState(My.Settings.MCNo, MachineOnline.Online)
 
     End Sub
 
@@ -97,6 +102,8 @@ Public Class Frmmain
         If e1 = MsgBoxResult.Yes Then
 
             '    SaveDataTableXml() 'Save Data ก่อนปิดโปรแกรม
+            'machine Offline Pro.
+            c_IlibraryService.MachineOnlineState(My.Settings.MCNo, MachineOnline.Offline)
             Me.Close()
         End If
     End Sub
@@ -171,12 +178,21 @@ Public Class Frmmain
 
             If My.Settings.RunOffline = MCMode.Online Then ' Online
                 BtStart.Enabled = False
-                If LotRequestTDC(para.LotNo, RunModeType.Normal, My.Settings.MCNo) = False Then
+                Dim setupResult As SetupLotResult = c_IlibraryService.SetupLot(para.LotNo, My.Settings.MCNo, para.OPNo, c_Process, c_LayerNo)
+                Select Case setupResult.IsPass
+                    Case SetupLotResult.Status.NotPass
+                        MessageBoxDialog.ShowMessageDialog(setupResult.FunctionName, setupResult.Cause, setupResult.Type.ToString(), setupResult.ErrorNo)
+                        Exit Sub
+                    Case SetupLotResult.Status.Warning
+                        MessageBoxDialog.ShowMessageDialog(setupResult.FunctionName, setupResult.Cause, setupResult.Type.ToString(), setupResult.ErrorNo)
+                    Case SetupLotResult.Status.Pass
 
-                    Exit Sub
-                End If
+                End Select
+                para.Recipe = setupResult.Recipe
                 '  BtStart.Visible = True
                 BtStart.Enabled = True
+
+                c_IlibraryService.UpdateMachineState(My.Settings.MCNo, MachineProcessingState.Setup)
                 'm_LotReqQueue = My.Settings.MCNo & "," & para.LotNo & "," & "0"
                 ' bgTDCLotReq.RunWorkerAsync()
 
@@ -196,32 +212,7 @@ Public Class Frmmain
         End If
         NewLot = True
     End Sub
-    Function LotRequestTDC(ByVal LotNo As String, ByVal rm As RunModeType, ByVal MCNo As String) As Boolean
-        ' Dim mc As String = "MAP-" & MCNo
-        Dim strMess As String = ""
-        Dim res As TdcLotRequestResponse = m_TdcService.LotRequest(MCNo, LotNo, rm)
 
-        If res.HasError Then
-
-            Using svError As ApcsWebServiceSoapClient = New ApcsWebServiceSoapClient
-                If svError.LotRptIgnoreError(MCNo, res.ErrorCode) = False Then
-                    Dim li As LotInfo = Nothing
-                    li = m_TdcService.GetLotInfo(LotNo, MCNo)
-                    Using dlg As TdcAlarmMessageForm = New TdcAlarmMessageForm(res.ErrorCode, res.ErrorMessage, LotNo, li)
-                        dlg.TopMost = True
-                        dlg.ShowDialog()
-
-                        Return False
-                    End Using
-                End If
-            End Using
-            strMess = res.ErrorCode & " : " & res.ErrorMessage
-            Return True
-        Else
-            strMess = "00 : Run Normal"
-            Return True
-        End If
-    End Function
     Private Sub LoadQR()
         QRCode252 = para.QRcode252
         lbPackage.Text = para.Package
@@ -292,7 +283,8 @@ Public Class Frmmain
         SeveparaXml()
         SaveCatchLog("Start_Click >>" & para.Status & "Start=" & para.StartTime & ">>OPNo=" & para.OPNo & ">>InputQty=" & para.InputQty, para.QRcode252)
 
-        Dim resSet As TdcResponse = m_TdcService.LotSet(My.Settings.MCNo, para.LotNo, para.StartTime, para.OPNo, RunModeType.Normal)
+        c_IlibraryService.StartLot(para.LotNo, My.Settings.MCNo, para.OPNo, para.Recipe)
+        c_IlibraryService.UpdateMachineState(My.Settings.MCNo, MachineProcessingState.Execute)
         'EMS monitor
         Try
             m_EmsClient.SetCurrentLot(My.Settings.MCNo, para.LotNo, 0)
@@ -444,9 +436,13 @@ Public Class Frmmain
         SaveCatchLog("btEnd_Click >>" & para.Status & "End=" & para.EndTime & ">>OPNo=" & para.OPNo & ">>InputQty=" & para.InputQty & ">>NGQty=" & para.NGQty & ">>GoodQty=" & para.GoodQty & ">>DefectMode=" & para.DefectMode & ">>Remark=" & para.Remark & ">>RequestMode=" & para.RequestMode, para.QRcode252)
 
         Dim tmpData As String = My.Settings.MCNo & "," & para.LotNo & "," & CDate(para.EndTime) & "," & CInt(para.GoodQty) & "," & CInt(para.NGQty) & "," & para.OPNo & "," & "1"
-
-        Dim resEnd As TdcResponse = m_TdcService.LotEnd(My.Settings.MCNo, lbLotNo.Text, CDate(para.EndTime), CInt(para.GoodQty), CInt(para.NGQty), EndModeType.Normal, para.OPNo)
-        'SaveLog(Message.Cellcon, lbLotNo.Text & ":" & lbOp.Text & ">>" & resEnd.ErrorCode & ":" & resEnd.ErrorMessage)
+ReEndLot:
+        Dim endLotResult As EndLotResult = c_IlibraryService.EndLot(para.LotNo, My.Settings.MCNo, para.OPNo, CInt(para.GoodQty), CInt(para.NGQty))
+        If Not endLotResult.IsPass Then
+            MessageBoxDialog.ShowMessageDialog(endLotResult.FunctionName, endLotResult.Cause, endLotResult.Type.ToString())
+            GoTo ReEndLot
+        End If
+        c_IlibraryService.UpdateMachineState(My.Settings.MCNo, MachineProcessingState.Idle)
         'EMS end My.Settings.MCNo, para.LotNo, para.StartTime, para.OPNo, RunModeType.Normal
         Try
             m_EmsClient.SetOutput(My.Settings.MCNo, CInt(para.GoodQty), CInt(para.NGQty))
@@ -455,6 +451,7 @@ Public Class Frmmain
         Catch ex As Exception
             '  SaveLog(Message.Cellcon, "SetActivity Stop :" & ex.ToString)
         End Try
+
         'SyncLock m_Locker
         '    m_LotEndQueue.Enqueue(tmpData)
         'End SyncLock
@@ -579,355 +576,9 @@ Public Class Frmmain
         '    End If
         'End Using
     End Sub
-    Private Sub bgTDC_DoWork(ByVal sender As System.Object, ByVal e As System.ComponentModel.DoWorkEventArgs) Handles bgTDC.DoWork
-        Dim TmpData As String = ""
-        Dim ArrayData As String()
-        'LotSet
-        Dim MCNo As String
-        Dim LotNo As String
-        Dim StartTime As String
-        Dim OPNo As String
-        Dim LotSetMode As String = ""
-
-        'LotEnd
-        Dim EndTime As String
-        Dim GoodQty As Integer
-        Dim NGQTy As Integer
-        Dim CountErr03 As Integer = 0
-        Dim LotEndMode As String = ""
-
-LBL_QUEUE_LOTSET_CHECK:
-        Dim RepeatCountLotSet As Integer = 0
-        SyncLock m_Locker
-            If m_LotSetQueue.Count > 0 Then 'ทำ LotSet จนกว่าจะหมด Qeue
-                TmpData = m_LotSetQueue.Dequeue
-                ArrayData = TmpData.Split(CChar(","))
-                MCNo = ArrayData(0)
-                LotNo = ArrayData(1)
-                StartTime = ArrayData(2)
-                OPNo = ArrayData(3)
-                LotSetMode = ArrayData(4)
-                RepeatCountLotSet = 0
-            Else 'ทำ LotEnd จนกว่าจะหมด Qeue
-                GoTo LBL_QUEUE_LOTEND_CHECK
-            End If
-        End SyncLock
-
-LBL_QUEUE_LotSet_Err:
-
-        Dim resSet As TdcResponse = m_TdcService.LotSet(MCNo, LotNo, CDate(StartTime), OPNo, RunModeType.Normal)
-        If resSet.HasError Then
-            If RepeatCountLotSet > 5 Then 'กรณีที่ Err 70,71,72 วนรันซ้ำมากกว่า 5 ครั้ง เป็น Err Log แล้วรัน Lot ต่อไป
-                addlogfile("LotSet : " & TmpData)
-                GoTo LBL_QUEUE_LOTSET_CHECK
-            End If
-
-            Select Case resSet.ErrorCode
-                Case "04"
-                    RepeatCountLotSet += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotSet_Err
-                Case "70"
-                    RepeatCountLotSet += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotSet_Err
-                Case "71"
-                    RepeatCountLotSet += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotSet_Err
-                Case "72"
-                    RepeatCountLotSet += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotSet_Err
-                Case "99"
-                    RepeatCountLotSet += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotSet_Err
-            End Select
-        End If
-        GoTo LBL_QUEUE_LOTSET_CHECK
-
-
-LBL_QUEUE_LOTEND_CHECK:
-        Dim RepeatCountLotEnd As Integer = 0
-        SyncLock m_Locker
-
-            If m_LotEndQueue.Count > 0 Then 'ทำ LotEnd จนกว่าจะหมด Qeue
-                TmpData = m_LotEndQueue.Dequeue
-                ArrayData = TmpData.Split(CChar(","))
-                MCNo = ArrayData(0)
-                LotNo = ArrayData(1)
-                EndTime = ArrayData(2)
-                GoodQty = CInt(ArrayData(3))
-
-                If ArrayData(4) = "" Then
-                    NGQTy = 0
-                Else
-                    NGQTy = CInt(ArrayData(4))
-                End If
-                OPNo = ArrayData(5)
-                LotEndMode = ArrayData(6)
-                RepeatCountLotEnd = 0
-            Else 'ทำ LotEnd จนกว่าจะหมด Qeue
-                Exit Sub
-            End If
-        End SyncLock
-
-LBL_QUEUE_LotEnd_Err:
-
-        Dim resEnd As TdcResponse = m_TdcService.LotEnd(MCNo, LotNo, CDate(EndTime), CInt(GoodQty), CInt(NGQTy), CType(LotEndMode, EndModeType), OPNo)
-        If resEnd.HasError Then
-            If RepeatCountLotEnd > 5 Then 'กรณีที่ Err 70,71,72 วนรันซ้ำมากกว่า 5 ครั้ง เป็น Err Log แล้วรัน Lot ต่อไป
-                addlogfile("LotEnd : " & TmpData)
-                GoTo LBL_QUEUE_LOTEND_CHECK
-            End If
-            Select Case resEnd.ErrorCode
-                Case "03" 'Lot was not started or ended 150921
-                    CountErr03 += 1 '                                  150923
-                    If CountErr03 > 10 Then '                          150923
-                        addlogfile("LotErr03 : " & TmpData) '          150923
-                        CountErr03 = 0 '                               150923
-                        GoTo LBL_QUEUE_LOTEND_CHECK '                  150923
-                    End If '150923
-                    m_LotEndQueue.Enqueue(TmpData)
-                    GoTo LBL_QUEUE_LOTSET_CHECK
-                Case "04" 'MC not found
-                    RepeatCountLotEnd += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotEnd_Err
-                Case "70"
-                    RepeatCountLotEnd += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotEnd_Err
-                Case "71"
-                    RepeatCountLotEnd += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotEnd_Err
-                Case "72"
-                    RepeatCountLotEnd += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotEnd_Err
-                Case "99"
-                    RepeatCountLotEnd += 1
-                    Thread.Sleep(3000)
-                    GoTo LBL_QUEUE_LotEnd_Err
-            End Select
-        End If
-        CountErr03 = 0
-        GoTo LBL_QUEUE_LOTEND_CHECK
-    End Sub
-
-    Private Sub bgTDCLotReq_DoWork(ByVal sender As System.Object, ByVal e As System.ComponentModel.DoWorkEventArgs) Handles bgTDCLotReq.DoWork
-        Dim TmpData As String
-        Dim ArrayData() As String
-        Dim MCNo As String
-        Dim LotNo As String
-        Dim LotSetMode As String
-
-
-        'McNo,LotNo,LotStartMode
-        TmpData = m_LotReqQueue
-        ArrayData = TmpData.Split(CChar(","))
-        MCNo = ArrayData(0)
-        LotNo = ArrayData(1)
-        LotSetMode = ArrayData(2)
-
-
-        li = Nothing
-
-        Dim strMess As String = ""
-        Dim res As TdcResponse = m_TdcService.LotRequest(MCNo, LotNo, CType(CInt(LotSetMode), RunModeType))
-        If res.HasError Then
-            'My.Settings.NotFound = cb01.SelectedIndex
-            'My.Settings.Running = cb02.SelectedIndex
-            'My.Settings.NotRun = cb03.SelectedIndex
-            'My.Settings.MachineNotFound = cb04.SelectedIndex
-            'My.Settings.ErrorLotStatus = cb05.SelectedIndex
-            'My.Settings.ErrorFlow = cb06.SelectedIndex
-            'My.Settings.ErrorConnectDatabase = cb70.SelectedIndex
-            'My.Settings.ErrorReadDatabase = cb71.SelectedIndex
-            'My.Settings.ErrorWriteDatabase = cb72.SelectedIndex
-            'My.Settings.ErrorOther = cb99.SelectedIndex
-            'My.Settings.Save()
-            If res.ErrorCode = "01" Then
-                strMess = "01 : Not found"
-                If My.Settings.NotFound = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "02" Then
-                strMess = "02 : Running" 'Lotset ซ้ำ
-                If My.Settings.Running = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "03" Then
-                strMess = "03 : Not run" 'End ที่ยังไม่ lotset
-                If My.Settings.NotRun = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "04" Then
-                strMess = "04 : Machine not found" 'Machine ยังไม่ลงทะเบียน
-                If My.Settings.MachineNotFound = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "05" Then
-                strMess = "05 : Error lot status"
-                If My.Settings.ErrorLotStatus = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "06" Then
-                strMess = "06 : " & res.ErrorMessage 'run ผิด flow
-                If My.Settings.ErrorFlow = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "70" Then
-                strMess = "70 : Error connect database"
-                If My.Settings.ErrorConnectDatabase = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "71" Then
-                strMess = "71 : Error read database"
-                If My.Settings.ErrorReadDatabase = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "72" Then
-                strMess = "72 : Error write database"
-                If My.Settings.ErrorWriteDatabase = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            ElseIf res.ErrorCode = "99" Then
-                strMess = "99 : " & res.ErrorMessage 'Other
-                If My.Settings.ErrorOther = MCLock.Unlock Then
-                    para.MCLock = MCLock.Unlock
-                Else
-                    para.MCLock = MCLock.Lock
-                End If
-            End If
-        Else
-            strMess = "00 : Run Normal"
-            para.MCLock = MCLock.Unlock
-        End If
-        'If res.HasError Then
-        '    If res.ErrorCode = "01" Then
-        '        strMess = "01 : Not found"
-        '        If _01 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "02" Then
-        '        strMess = "02 : Running" 'Lotset ซ้ำ
-        '        If _02 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "03" Then
-        '        strMess = "03 : Not run" 'End ที่ยังไม่ lotset
-        '        If _03 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "04" Then
-        '        strMess = "04 : Machine not found" 'Machine ยังไม่ลงทะเบียน
-        '        If _04 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "05" Then
-        '        strMess = "05 : Error lot status"
-        '        If _05 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "06" Then
-        '        strMess = res.ErrorMessage 'run ผิด flow
-        '        If _06 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "70" Then
-        '        strMess = "70 : Error connect database"
-        '        If _70 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "71" Then
-        '        strMess = "71 : Error read database"
-        '        If _71 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "72" Then
-        '        strMess = "72 : Error write database"
-        '        If _72 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    ElseIf res.ErrorCode = "99" Then
-        '        strMess = "99 : " & res.ErrorMessage 'Other
-        '        If _99 = True Then
-        '            para.MCLock = False
-        '        Else
-        '            para.MCLock = True
-        '        End If
-        '    End If
-        'Else
-        '    strMess = "00 : Run Normal"
-        '    para.MCLock = False
-        'End If
 
 
 
-
-        If para.MCLock = MCLock.Lock Then
-            li = m_TdcService.GetLotInfo(para.LotNo, My.Settings.MCNo)
-            m_dlg = New TdcAlarmMessageForm(res.ErrorCode, res.ErrorMessage, para.LotNo, li)
-        End If
-
-        m_LotReqMes = strMess
-
-    End Sub
-
-    Private Sub bgTDCLotReq_RunWorkerCompleted(ByVal sender As Object, ByVal e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles bgTDCLotReq.RunWorkerCompleted
-
-        para.LotInfor = m_LotReqMes
-        lbLotInfo.Text = para.LotInfor
-
-        SeveparaXml()
-
-        If para.MCLock = MCLock.Lock Then
-            m_dlg.ShowDialog()
-        Else
-            BtStart.Enabled = True
-        End If
-
-
-    End Sub
     Enum MCLock
         Unlock
         Lock
