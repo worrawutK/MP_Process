@@ -113,6 +113,12 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>DBxDataSet.xsd</DependentUpon>
     </Compile>
+    <Compile Include="DialogMessage.Designer.vb">
+      <DependentUpon>DialogMessage.vb</DependentUpon>
+    </Compile>
+    <Compile Include="DialogMessage.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="frmInputQR.Designer.vb">
       <DependentUpon>frmInputQR.vb</DependentUpon>
     </Compile>
@@ -123,6 +129,12 @@
       <DependentUpon>frmMain.vb</DependentUpon>
     </Compile>
     <Compile Include="frmMain.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="InputQrCarrierNo.Designer.vb">
+      <DependentUpon>InputQrCarrierNo.vb</DependentUpon>
+    </Compile>
+    <Compile Include="InputQrCarrierNo.vb">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Module1.vb" />
@@ -156,6 +168,9 @@
     <Compile Include="Settings.vb" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="DialogMessage.resx">
+      <DependentUpon>DialogMessage.vb</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="frmInputQR.resx">
       <DependentUpon>frmInputQR.vb</DependentUpon>
       <SubType>Designer</SubType>
@@ -163,6 +178,9 @@
     <EmbeddedResource Include="frmMain.resx">
       <DependentUpon>frmMain.vb</DependentUpon>
       <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="InputQrCarrierNo.resx">
+      <DependentUpon>InputQrCarrierNo.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="My Project\Resources.resx">
       <Generator>VbMyResourcesResXFileCodeGenerator</Generator>
@@ -184,10 +202,19 @@
     <None Include="Service References\iLibraryService\Selfcon_Plasma_Washing_Record.iLibraryService.CancelLotResult.datasource">
       <DependentUpon>Reference.svcmap</DependentUpon>
     </None>
+    <None Include="Service References\iLibraryService\Selfcon_Plasma_Washing_Record.iLibraryService.CarrierInfo.datasource">
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </None>
     <None Include="Service References\iLibraryService\Selfcon_Plasma_Washing_Record.iLibraryService.CheckLotApcsProResult.datasource">
       <DependentUpon>Reference.svcmap</DependentUpon>
     </None>
     <None Include="Service References\iLibraryService\Selfcon_Plasma_Washing_Record.iLibraryService.EndLotResult.datasource">
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </None>
+    <None Include="Service References\iLibraryService\Selfcon_Plasma_Washing_Record.iLibraryService.iReportResponse.datasource">
+      <DependentUpon>Reference.svcmap</DependentUpon>
+    </None>
+    <None Include="Service References\iLibraryService\Selfcon_Plasma_Washing_Record.iLibraryService.LotInformation.datasource">
       <DependentUpon>Reference.svcmap</DependentUpon>
     </None>
     <None Include="Service References\iLibraryService\Selfcon_Plasma_Washing_Record.iLibraryService.MachineAlarmResult.datasource">
@@ -253,6 +280,9 @@
     <None Include="Resources\PLASMA WASHING WORK.png" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Resources\PicturBoxRohmLogo.gif" />
+    <Content Include="Resources\PictureBoxQrCode.png" />
+    <Content Include="Resources\PictureBoxWrong.png" />
     <Content Include="RohmIcon.ico" />
     <Content Include="SelfCon10.ico" />
     <None Include="Service References\iLibraryService\Reference.svcmap">

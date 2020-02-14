@@ -151,7 +151,10 @@ Public Class Frmmain
 
         Call Shell("C:\Program Files\Internet Explorer\iexplore.exe http://webserv.thematrix.net/LsiPETE/LSI_Prog/Maintenance/MainPMlogin.asp?" & "MCNo=" & My.Settings.MCNo, vbNormalFocus)
     End Sub
-
+    Private Sub OpenDialogMessage(message As String, title As String)
+        Dim frm As DialogMessage = New DialogMessage(message, "http://webserv.thematrix.net/atom", title)
+        frm.ShowDialog()
+    End Sub
     Private Sub LoadQR_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ScanQR.Click
 
         If para.Status = PlasmaStatus.LotStart.ToString Then
@@ -178,7 +181,27 @@ Public Class Frmmain
 
             If My.Settings.RunOffline = MCMode.Online Then ' Online
                 BtStart.Enabled = False
-                Dim setupResult As SetupLotResult = c_IlibraryService.SetupLot(para.LotNo, My.Settings.MCNo, para.OPNo, c_Process, c_LayerNo)
+                Dim carrierInfo As CarrierInfo = c_IlibraryService.GetCarrierInfo(My.Settings.MCNo, para.LotNo, para.OPNo)
+                If carrierInfo.EnabledControlCarrier = CarrierInfo.CarrierStatus.Use AndAlso carrierInfo.InControlCarrier = CarrierInfo.CarrierStatus.Use Then
+                    If carrierInfo.RegisterCarrier = CarrierInfo.CarrierStatus.Use Then
+                        Dim dialogQrCarrierInput As InputQrCarrierNo = New InputQrCarrierNo(11, "Load Carrier No.", Color.Orange)
+                        carrierInfo.RegisterCarrierNo = dialogQrCarrierInput.QrCarrierNo
+                    End If
+                    If carrierInfo.LoadCarrier = CarrierInfo.CarrierStatus.Use Then
+                        Dim dialogQrCarrierInput As InputQrCarrierNo = New InputQrCarrierNo(11, "Load Carrier No." & vbCrLf & "[" & carrierInfo.CurrentCarrierNo.Trim.ToUpper & "]", Color.Orange)
+                        carrierInfo.LoadCarrierNo = dialogQrCarrierInput.QrCarrierNo
+                    End If
+                    If carrierInfo.TransferCarrier = CarrierInfo.CarrierStatus.Use Then
+                        Dim dialogQrCarrierInput As InputQrCarrierNo = New InputQrCarrierNo(11, "Transfer Carrier No.", Color.Orange)
+                        carrierInfo.TransferCarrierNo = dialogQrCarrierInput.QrCarrierNo
+                    End If
+                End If
+
+                Dim setupPara As SetupLotSpecialParametersEventArgs = New SetupLotSpecialParametersEventArgs With {
+                    .LayerNoApcs = c_LayerNo
+                }
+                Dim setupResult As SetupLotResult = c_IlibraryService.SetupLotPhase2(para.LotNo, My.Settings.MCNo, para.OPNo, c_Process, Licenser.NoCheck, carrierInfo, setupPara)
+                'Dim setupResult As SetupLotResult = c_IlibraryService.SetupLot(para.LotNo, My.Settings.MCNo, para.OPNo, c_Process, c_LayerNo)
                 Select Case setupResult.IsPass
                     Case SetupLotResult.Status.NotPass
                         MessageBoxDialog.ShowMessageDialog(setupResult.FunctionName, setupResult.Cause, setupResult.Type.ToString(), setupResult.ErrorNo)
@@ -282,8 +305,10 @@ Public Class Frmmain
         Start()
         SeveparaXml()
         SaveCatchLog("Start_Click >>" & para.Status & "Start=" & para.StartTime & ">>OPNo=" & para.OPNo & ">>InputQty=" & para.InputQty, para.QRcode252)
-
-        c_IlibraryService.StartLot(para.LotNo, My.Settings.MCNo, para.OPNo, para.Recipe)
+        Dim carrierInfo As CarrierInfo = c_IlibraryService.GetCarrierInfo(My.Settings.MCNo, para.LotNo, para.OPNo)
+        carrierInfo.LoadCarrierNo = carrierInfo.CurrentCarrierNo
+        c_IlibraryService.StartLotPhase2(para.LotNo, My.Settings.MCNo, para.OPNo, para.Recipe, carrierInfo, Nothing)
+        'c_IlibraryService.StartLot(para.LotNo, My.Settings.MCNo, para.OPNo, para.Recipe)
         c_IlibraryService.UpdateMachineState(My.Settings.MCNo, MachineProcessingState.Execute)
         'EMS monitor
         Try
@@ -437,7 +462,15 @@ Public Class Frmmain
 
         Dim tmpData As String = My.Settings.MCNo & "," & para.LotNo & "," & CDate(para.EndTime) & "," & CInt(para.GoodQty) & "," & CInt(para.NGQty) & "," & para.OPNo & "," & "1"
 ReEndLot:
-        Dim endLotResult As EndLotResult = c_IlibraryService.EndLot(para.LotNo, My.Settings.MCNo, para.OPNo, CInt(para.GoodQty), CInt(para.NGQty))
+        Dim carrierInfo As CarrierInfo = c_IlibraryService.GetCarrierInfo(My.Settings.MCNo, para.LotNo, para.OPNo)
+        If carrierInfo.InControlCarrier = CarrierInfo.CarrierStatus.Use AndAlso carrierInfo.EnabledControlCarrier = CarrierInfo.CarrierStatus.Use Then
+            If carrierInfo.UnloadCarrier = CarrierInfo.CarrierStatus.Use Then
+                Dim dialogQrCarrierInput As InputQrCarrierNo = New InputQrCarrierNo(11, "Unload Carrier No.", Color.Orange)
+                carrierInfo.UnloadCarrierNo = dialogQrCarrierInput.QrCarrierNo
+            End If
+        End If
+        Dim endLotResult As EndLotResult = c_IlibraryService.EndLotPhase2(para.LotNo, My.Settings.MCNo, para.OPNo, CInt(para.GoodQty), CInt(para.NGQty), Licenser.NoCheck, carrierInfo, Nothing)
+        'Dim endLotResult As EndLotResult = c_IlibraryService.EndLot(para.LotNo, My.Settings.MCNo, para.OPNo, CInt(para.GoodQty), CInt(para.NGQty))
         If Not endLotResult.IsPass Then
             MessageBoxDialog.ShowMessageDialog(endLotResult.FunctionName, endLotResult.Cause, endLotResult.Type.ToString())
             GoTo ReEndLot

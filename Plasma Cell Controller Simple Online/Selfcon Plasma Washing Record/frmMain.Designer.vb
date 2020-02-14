@@ -1332,6 +1332,7 @@ Partial Class Frmmain
         Me.GroupBox1.Controls.Add(Me.Label17)
         Me.GroupBox1.Controls.Add(Me.Label18)
         Me.GroupBox1.Controls.Add(Me.Label22)
+        Me.GroupBox1.Enabled = False
         Me.GroupBox1.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
         Me.GroupBox1.ForeColor = System.Drawing.Color.Black
         Me.GroupBox1.Location = New System.Drawing.Point(22, 27)
@@ -1597,9 +1598,9 @@ Partial Class Frmmain
         Me.Label27.BackColor = System.Drawing.Color.Transparent
         Me.Label27.Location = New System.Drawing.Point(1087, 985)
         Me.Label27.Name = "Label27"
-        Me.Label27.Size = New System.Drawing.Size(152, 13)
+        Me.Label27.Size = New System.Drawing.Size(175, 13)
         Me.Label27.TabIndex = 310
-        Me.Label27.Text = "Version1.01 Support Apcs Pro."
+        Me.Label27.Text = "Version1.02 Support Carrier Control."
         Me.Label27.TextAlign = System.Drawing.ContentAlignment.MiddleRight
         '
         'DBxDataSet
